@@ -1,1 +1,751 @@
-# XFC
+[index (3).html](https://github.com/user-attachments/files/26284170/index.3.html)
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteio de Times - Futebol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/lucide-static@latest/font/lucide.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .fade-enter { opacity: 0; transform: translateY(10px); }
+        .fade-enter-active { opacity: 1; transform: translateY(0); transition: all 0.3s ease; }
+        .player-card { animation: slideIn 0.3s ease; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .position-badge { 
+            font-size: 10px; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .pos-GOL { background: #ef4444; color: white; }
+        .pos-ZAG { background: #3b82f6; color: white; }
+        .pos-MEI { background: #22c55e; color: white; }
+        .pos-ATA { background: #f59e0b; color: white; }
+        .pos-LIB { background: #8b5cf6; color: white; }
+        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen text-white overflow-x-hidden">
+
+<div x-data="sorteioApp()" x-init="init()" class="min-h-screen pb-20">
+
+    <!-- HEADER -->
+    <header class="bg-gradient-to-r from-green-600 to-emerald-600 shadow-2xl sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <span class="icon-trophy text-green-600 text-xl"></span>
+                </div>
+                <div>
+                    <h1 class="font-bold text-xl tracking-tight">Sorteio de Times</h1>
+                    <p class="text-green-100 text-xs">Futebol ⚽</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button @click="showPosicoes = !showPosicoes" :class="usarPosicoes ? 'bg-yellow-500 text-white' : 'bg-white/20'" class="hover:bg-white/30 transition px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium">
+                    <span class="icon-shield"></span>
+                    <span x-text="usarPosicoes ? 'Posições: ON' : 'Posições'"></span>
+                </button>
+                <button @click="showQR = !showQR" class="bg-white/20 hover:bg-white/30 transition px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium">
+                    <span class="icon-qr-code"></span>
+                    <span>QR Code</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- QR CODE MODAL -->
+    <div x-show="showQR" x-transition class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" style="display: none;">
+        <div @click.away="showQR = false" class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl transform transition-all">
+            <h3 class="text-slate-800 font-bold text-xl mb-2">Escaneie para participar</h3>
+            <p class="text-slate-500 text-sm mb-6">Compartilhe este QR Code com os jogadores</p>
+            <div class="bg-white p-4 rounded-xl border-4 border-green-500 inline-block mb-4 pulse-ring">
+                <img :src="qrCodeUrl" alt="QR Code" class="w-48 h-48">
+            </div>
+            <div class="bg-slate-100 rounded-lg p-3 mb-4">
+                <p class="text-slate-600 text-xs mb-1">Ou acesse diretamente:</p>
+                <p class="text-green-600 font-mono text-sm break-all" x-text="currentUrl"></p>
+            </div>
+            <button @click="showQR = false" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition">Fechar</button>
+        </div>
+    </div>
+
+    <!-- MODAL POSIÇÕES -->
+    <div x-show="showPosicoes" x-transition class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" style="display: none;">
+        <div @click.away="showPosicoes = false" class="bg-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-white/10">
+            <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+                <span class="icon-shield text-yellow-400"></span>
+                Configurar Posições
+            </h3>
+            <div class="space-y-3 mb-6">
+                <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-xl cursor-pointer hover:bg-slate-700 transition">
+                    <input type="checkbox" x-model="usarPosicoes" class="w-5 h-5 rounded accent-green-500">
+                    <div>
+                        <p class="font-medium">Usar posições no sorteio</p>
+                        <p class="text-slate-400 text-xs">Equilibra times por posição</p>
+                    </div>
+                </label>
+            </div>
+            <div class="bg-slate-700/30 rounded-xl p-4 space-y-2">
+                <p class="text-sm text-slate-400 mb-2">Posições disponíveis:</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="position-badge pos-GOL">GOL</span>
+                    <span class="position-badge pos-ZAG">ZAG</span>
+                    <span class="position-badge pos-MEI">MEI</span>
+                    <span class="position-badge pos-ATA">ATA</span>
+                    <span class="position-badge pos-LIB">LIB</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">GOL = Goleiro, ZAG = Zagueiro, MEI = Meia, ATA = Atacante, LIB = Libero</p>
+            </div>
+            <button @click="showPosicoes = false" class="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition">Salvar</button>
+        </div>
+    </div>
+
+    <main class="max-w-6xl mx-auto px-4 pt-6 space-y-6">
+
+        <!-- TELA INICIAL - CADASTRO -->
+        <div x-show="etapa === 'cadastro'" x-transition class="space-y-6">
+            
+            <!-- STATS CARD -->
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
+                    <span class="icon-users text-green-400 text-2xl mb-1 block"></span>
+                    <p class="text-2xl font-bold" x-text="jogadores.length"></p>
+                    <p class="text-slate-400 text-xs">Jogadores</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
+                    <span class="icon-shield text-blue-400 text-2xl mb-1 block"></span>
+                    <p class="text-2xl font-bold" x-text="numeroTimes"></p>
+                    <p class="text-slate-400 text-xs">Times</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
+                    <span class="icon-calculator text-purple-400 text-2xl mb-1 block"></span>
+                    <p class="text-2xl font-bold" x-text="jogadoresPorTime"></p>
+                    <p class="text-slate-400 text-xs">Por Time</p>
+                </div>
+            </div>
+
+            <!-- ESTATÍSTICAS DE POSIÇÕES -->
+            <div x-show="usarPosicoes" class="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10" style="display: none;">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold flex items-center gap-2">
+                        <span class="icon-bar-chart-2 text-yellow-400"></span>
+                        Jogadores por Posição
+                    </h3>
+                </div>
+                <div class="grid grid-cols-5 gap-2">
+                    <div class="text-center p-2 bg-red-500/20 rounded-lg border border-red-500/30">
+                        <span class="text-xs font-bold text-red-400">GOL</span>
+                        <p class="text-xl font-bold" x-text="contarPorPosicao('GOL')"></p>
+                    </div>
+                    <div class="text-center p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
+                        <span class="text-xs font-bold text-blue-400">ZAG</span>
+                        <p class="text-xl font-bold" x-text="contarPorPosicao('ZAG')"></p>
+                    </div>
+                    <div class="text-center p-2 bg-green-500/20 rounded-lg border border-green-500/30">
+                        <span class="text-xs font-bold text-green-400">MEI</span>
+                        <p class="text-xl font-bold" x-text="contarPorPosicao('MEI')"></p>
+                    </div>
+                    <div class="text-center p-2 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
+                        <span class="text-xs font-bold text-yellow-400">ATA</span>
+                        <p class="text-xl font-bold" x-text="contarPorPosicao('ATA')"></p>
+                    </div>
+                    <div class="text-center p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                        <span class="text-xs font-bold text-purple-400">LIB</span>
+                        <p class="text-xl font-bold" x-text="contarPorPosicao('LIB')"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADD PLAYER FORM -->
+            <div class="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
+                <h2 class="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <span class="icon-user-plus text-green-400"></span>
+                    Adicionar Jogador
+                </h2>
+                <div class="grid md:grid-cols-12 gap-4">
+                    <div class="md:col-span-5">
+                        <input x-model="novoJogador.nome" @keydown.enter="adicionarJogador()" type="text" placeholder="Nome do jogador" 
+                            class="w-full bg-slate-800/50 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition">
+                    </div>
+                    <div class="md:col-span-3 relative">
+                        <select x-model="novoJogador.nivel" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition appearance-none cursor-pointer">
+                            <option value="1">⭐ Iniciante</option>
+                            <option value="2">⭐⭐ Intermediário</option>
+                            <option value="3">⭐⭐⭐ Avançado</option>
+                        </select>
+                        <span class="icon-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></span>
+                    </div>
+                    <div class="md:col-span-4 relative">
+                        <select x-model="novoJogador.posicao" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition appearance-none cursor-pointer">
+                            <option value="GOL">🧤 Goleiro</option>
+                            <option value="ZAG">🛡️ Zagueiro</option>
+                            <option value="MEI">⚡ Meia</option>
+                            <option value="ATA">🎯 Atacante</option>
+                            <option value="LIB">🔓 Libero (Qualquer)</option>
+                        </select>
+                        <span class="icon-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></span>
+                    </div>
+                </div>
+                <button @click="adicionarJogador()" :disabled="!novoJogador.nome.trim()" 
+                    class="mt-4 w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <span class="icon-plus"></span>
+                    Adicionar Jogador
+                </button>
+            </div>
+
+            <!-- CONFIGURAÇÕES -->
+            <div class="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
+                <h2 class="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <span class="icon-settings text-blue-400"></span>
+                    Configurações do Sorteio
+                </h2>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="text-slate-400 text-sm mb-2 block">Número de Times</label>
+                        <div class="flex items-center gap-3">
+                            <button @click="numeroTimes = Math.max(2, numeroTimes - 1)" class="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-600 transition">
+                                <span class="icon-minus text-sm"></span>
+                            </button>
+                            <span class="text-2xl font-bold w-8 text-center" x-text="numeroTimes"></span>
+                            <button @click="numeroTimes++" class="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-600 transition">
+                                <span class="icon-plus text-sm"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-slate-400 text-sm mb-2 block">Método de Sorteio</label>
+                        <select x-model="metodoSorteio" class="w-full bg-slate-800/50 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition">
+                            <option value="equilibrado">⚖️ Equilibrado (nível + posição)</option>
+                            <option value="posicao">🎯 Por Posição (prioridade)</option>
+                            <option value="aleatorio">🎲 Aleatório</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LISTA DE JOGADORES -->
+            <div x-show="jogadores.length > 0" class="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10" style="display: none;">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-semibold text-lg flex items-center gap-2">
+                        <span class="icon-list text-purple-400"></span>
+                        Jogadores (<span x-text="jogadores.length"></span>)
+                    </h2>
+                    <button @click="jogadores = []" class="text-red-400 hover:text-red-300 text-sm flex items-center gap-1 transition">
+                        <span class="icon-trash-2 text-xs"></span>
+                        Limpar
+                    </button>
+                </div>
+                <div class="grid md:grid-cols-2 gap-3">
+                    <template x-for="(jogador, index) in jogadores" :key="index">
+                        <div class="player-card bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm relative"
+                                    :class="jogador.nivel == 3 ? 'bg-yellow-500/20 text-yellow-400' : (jogador.nivel == 2 ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-600/50 text-slate-400')">
+                                    <span x-text="jogador.nome.charAt(0).toUpperCase()"></span>
+                                    <span class="position-badge absolute -bottom-1 -right-1 text-[8px]" :class="'pos-' + jogador.posicao" x-text="jogador.posicao"></span>
+                                </div>
+                                <div>
+                                    <p class="font-medium" x-text="jogador.nome"></p>
+                                    <p class="text-xs text-slate-400 flex items-center gap-1">
+                                        <span x-text="jogador.nivel == 3 ? '⭐⭐⭐' : (jogador.nivel == 2 ? '⭐⭐' : '⭐')"></span>
+                                        <span x-text="getPosicaoNome(jogador.posicao)" class="text-slate-500"></span>
+                                    </p>
+                                </div>
+                            </div>
+                            <button @click="removerJogador(index)" class="text-slate-500 hover:text-red-400 p-2 transition">
+                                <span class="icon-x text-lg"></span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- VALIDAÇÃO DE GOLEIROS -->
+            <div x-show="usarPosicoes && validacaoGoleiros.mostrar" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
+                <span class="icon-alert-triangle text-amber-400 text-xl mt-0.5"></span>
+                <div class="flex-1">
+                    <p class="font-medium text-amber-200">Atenção aos Goleiros</p>
+                    <p class="text-sm text-amber-300/80" x-text="validacaoGoleiros.mensagem"></p>
+                </div>
+            </div>
+
+            <!-- BOTÃO SORTEAR -->
+            <button x-show="podeSortear" @click="sortearTimes()" 
+                class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 rounded-2xl text-lg transition transform hover:scale-[1.02] active:scale-95 shadow-xl shadow-blue-600/25 flex items-center justify-center gap-3" style="display: none;">
+                <span class="icon-shuffle text-xl"></span>
+                SORTEAR TIMES
+            </button>
+            
+            <p x-show="jogadores.length > 0 && !podeSortear" class="text-center text-slate-400 text-sm py-4" x-text="mensagemValidacao"></p>
+        </div>
+
+        <!-- TELA DE RESULTADO -->
+        <div x-show="etapa === 'resultado'" x-transition class="space-y-6">
+            
+            <!-- HEADER RESULTADO -->
+            <div class="flex items-center justify-between">
+                <button @click="etapa = 'cadastro'" class="text-slate-400 hover:text-white flex items-center gap-2 transition">
+                    <span class="icon-arrow-left"></span>
+                    Voltar
+                </button>
+                <div class="flex gap-2">
+                    <button @click="copiarTimes()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
+                        <span class="icon-copy"></span>
+                        Copiar
+                    </button>
+                    <button @click="sortearTimes()" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition">
+                        <span class="icon-refresh-cw"></span>
+                        Novo Sorteio
+                    </button>
+                </div>
+            </div>
+
+            <!-- ESTATÍSTICAS DOS TIMES -->
+            <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
+                <h3 class="font-semibold mb-3 flex items-center gap-2">
+                    <span class="icon-activity text-green-400"></span>
+                    Balanceamento dos Times
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-white/10">
+                                <th class="text-left py-2">Time</th>
+                                <th class="text-center py-2">🧤 GOL</th>
+                                <th class="text-center py-2">🛡️ ZAG</th>
+                                <th class="text-center py-2">⚡ MEI</th>
+                                <th class="text-center py-2">🎯 ATA</th>
+                                <th class="text-center py-2">⭐ Média</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(time, timeIndex) in times" :key="timeIndex">
+                                <tr class="border-b border-white/5">
+                                    <td class="py-2 font-medium" x-text="'Time ' + (timeIndex + 1)"></td>
+                                    <td class="text-center py-2" x-text="contarPosicaoNoTime(time, 'GOL')"></td>
+                                    <td class="text-center py-2" x-text="contarPosicaoNoTime(time, 'ZAG')"></td>
+                                    <td class="text-center py-2" x-text="contarPosicaoNoTime(time, 'MEI')"></td>
+                                    <td class="text-center py-2" x-text="contarPosicaoNoTime(time, 'ATA')"></td>
+                                    <td class="text-center py-2">
+                                        <div class="flex gap-0.5 justify-center">
+                                            <template x-for="i in 3">
+                                                <span class="text-xs" 
+                                                    :class="i <= calcularMedia(time) ? 'text-yellow-300' : 'text-white/20'">⭐</span>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TIMES -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <template x-for="(time, timeIndex) in times" :key="timeIndex">
+                    <div class="card-hover rounded-2xl overflow-hidden border border-white/10" 
+                        :class="coresTimes[timeIndex % coresTimes.length].bg">
+                        
+                        <!-- HEADER TIME -->
+                        <div class="p-4 border-b border-white/10 flex items-center justify-between" :class="coresTimes[timeIndex % coresTimes.length].header">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur">
+                                    <span :class="coresTimes[timeIndex % coresTimes.length].icon" class="text-2xl"></span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg" x-text="'Time ' + (timeIndex + 1)"></h3>
+                                    <p class="text-white/70 text-sm"><span x-text="time.length"></span> jogadores</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-white/60">Média Nível</p>
+                                <div class="flex gap-0.5 justify-end">
+                                    <template x-for="i in 3">
+                                        <span class="text-sm" 
+                                            :class="i <= calcularMedia(time) ? 'text-yellow-300' : 'text-white/20'">⭐</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- JOGADORES -->
+                        <div class="p-4 space-y-2">
+                            <!-- GOLEIRO PRIMEIRO -->
+                            <template x-for="(jogador, jIndex) in ordenarPorPosicao(time)" :key="jIndex">
+                                <div class="flex items-center gap-3 bg-black/20 rounded-lg p-3" :class="jogador.posicao === 'GOL' ? 'ring-2 ring-red-400/50' : ''">
+                                    <span class="text-white/40 font-mono text-sm w-6" x-text="(jIndex + 1) + '.'"></span>
+                                    <div class="relative">
+                                        <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold" 
+                                            x-text="jogador.nome.charAt(0).toUpperCase()"></div>
+                                        <span class="position-badge absolute -bottom-1 -right-1 text-[7px]" :class="'pos-' + jogador.posicao" x-text="jogador.posicao"></span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <span class="font-medium block truncate" x-text="jogador.nome"></span>
+                                        <span class="text-xs text-white/50" x-text="getPosicaoNome(jogador.posicao)"></span>
+                                    </div>
+                                    <div class="flex gap-0.5">
+                                        <template x-for="i in jogador.nivel">
+                                            <span class="text-yellow-300 text-xs">⭐</span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- FORMAÇÃO SUGERIDA -->
+                        <div class="px-4 pb-4">
+                            <div class="bg-black/30 rounded-lg p-3">
+                                <p class="text-xs text-white/60 mb-2">Formação sugerida:</p>
+                                <div class="flex items-center gap-2 text-sm font-medium">
+                                    <span x-text="sugerirFormacao(time)"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- RESUMO -->
+            <div class="bg-white/5 rounded-2xl p-6 border border-white/10">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <span class="icon-bar-chart-2 text-green-400"></span>
+                    Resumo do Sorteio
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="bg-slate-800/50 rounded-xl p-3">
+                        <p class="text-2xl font-bold text-green-400" x-text="jogadores.length"></p>
+                        <p class="text-slate-400 text-xs">Total Jogadores</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-3">
+                        <p class="text-2xl font-bold text-blue-400" x-text="numeroTimes"></p>
+                        <p class="text-slate-400 text-xs">Times Formados</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-3">
+                        <p class="text-2xl font-bold text-yellow-400" x-text="metodoSorteio === 'equilibrado' ? 'Nível+Pos' : (metodoSorteio === 'posicao' ? 'Por Posição' : 'Aleatório')"></p>
+                        <p class="text-slate-400 text-xs">Método</p>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-3">
+                        <p class="text-2xl font-bold text-purple-400" x-text="usarPosicoes ? 'Ativo' : 'Off'"></p>
+                        <p class="text-slate-400 text-xs">Sistema Posições</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- TOAST NOTIFICATION -->
+    <div x-show="toast.show" x-transition x-text="toast.message" 
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl border border-white/10 z-50" style="display: none;">
+    </div>
+
+</div>
+
+<script>
+function sorteioApp() {
+    return {
+        etapa: 'cadastro',
+        showQR: false,
+        showPosicoes: false,
+        usarPosicoes: true,
+        jogadores: [],
+        times: [],
+        numeroTimes: 2,
+        metodoSorteio: 'equilibrado',
+        currentUrl: window.location.href,
+        qrCodeUrl: '',
+        toast: { show: false, message: '' },
+        
+        novoJogador: {
+            nome: '',
+            nivel: 2,
+            posicao: 'LIB'
+        },
+
+        posicoes: {
+            'GOL': { nome: 'Goleiro', emoji: '🧤', ordem: 1 },
+            'ZAG': { nome: 'Zagueiro', emoji: '🛡️', ordem: 2 },
+            'MEI': { nome: 'Meia', emoji: '⚡', ordem: 3 },
+            'ATA': { nome: 'Atacante', emoji: '🎯', ordem: 4 },
+            'LIB': { nome: 'Libero', emoji: '🔓', ordem: 5 }
+        },
+
+        coresTimes: [
+            { bg: 'bg-gradient-to-br from-red-600 to-rose-700', header: 'bg-red-700/50', icon: 'icon-flame' },
+            { bg: 'bg-gradient-to-br from-blue-600 to-indigo-700', header: 'bg-blue-700/50', icon: 'icon-droplet' },
+            { bg: 'bg-gradient-to-br from-green-600 to-emerald-700', header: 'bg-green-700/50', icon: 'icon-leaf' },
+            { bg: 'bg-gradient-to-br from-yellow-600 to-amber-700', header: 'bg-yellow-700/50', icon: 'icon-sun' },
+            { bg: 'bg-gradient-to-br from-purple-600 to-violet-700', header: 'bg-purple-700/50', icon: 'icon-zap' },
+            { bg: 'bg-gradient-to-br from-pink-600 to-rose-700', header: 'bg-pink-700/50', icon: 'icon-heart' },
+            { bg: 'bg-gradient-to-br from-cyan-600 to-sky-700', header: 'bg-cyan-700/50', icon: 'icon-snowflake' },
+            { bg: 'bg-gradient-to-br from-orange-600 to-red-700', header: 'bg-orange-700/50', icon: 'icon-fire' }
+        ],
+
+        get podeSortear() {
+            if (this.jogadores.length < this.numeroTimes * 2) return false;
+            if (this.usarPosicoes) {
+                const goleiros = this.jogadores.filter(j => j.posicao === 'GOL').length;
+                if (goleiros < this.numeroTimes) return false;
+            }
+            return true;
+        },
+
+        get mensagemValidacao() {
+            if (this.jogadores.length < this.numeroTimes * 2) {
+                return `Adicione pelo menos ${this.numeroTimes * 2 - this.jogadores.length} jogador(es) para sortear`;
+            }
+            if (this.usarPosicoes) {
+                const goleiros = this.jogadores.filter(j => j.posicao === 'GOL').length;
+                const faltam = this.numeroTimes - goleiros;
+                if (faltam > 0) {
+                    return `⚠️ Adicione mais ${faltam} goleiro(s) para ter 1 por time`;
+                }
+            }
+            return '';
+        },
+
+        get validacaoGoleiros() {
+            const goleiros = this.jogadores.filter(j => j.posicao === 'GOL').length;
+            const faltam = this.numeroTimes - goleiros;
+            if (this.usarPosicoes && this.jogadores.length > 0) {
+                if (goleiros === 0) {
+                    return { mostrar: true, mensagem: `Nenhum goleiro cadastrado! Recomendamos pelo menos ${this.numeroTimes} goleiro(s).` };
+                }
+                if (faltam > 0) {
+                    return { mostrar: true, mensagem: `Faltam ${faltam} goleiro(s) para ter 1 por time. O sorteio distribuirá os existentes.` };
+                }
+            }
+            return { mostrar: false, mensagem: '' };
+        },
+
+        init() {
+            this.generateQRCode();
+            const saved = localStorage.getItem('sorteioJogadores');
+            if (saved) {
+                const data = JSON.parse(saved);
+                this.jogadores = data.jogadores || [];
+                this.usarPosicoes = data.usarPosicoes !== undefined ? data.usarPosicoes : true;
+            }
+        },
+
+        generateQRCode() {
+            this.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.currentUrl)}`;
+        },
+
+        getPosicaoNome(sigla) {
+            return this.posicoes[sigla]?.nome || sigla;
+        },
+
+        contarPorPosicao(posicao) {
+            return this.jogadores.filter(j => j.posicao === posicao).length;
+        },
+
+        contarPosicaoNoTime(time, posicao) {
+            return time.filter(j => j.posicao === posicao).length;
+        },
+
+        adicionarJogador() {
+            if (!this.novoJogador.nome.trim()) return;
+            
+            this.jogadores.push({
+                nome: this.novoJogador.nome.trim(),
+                nivel: parseInt(this.novoJogador.nivel),
+                posicao: this.novoJogador.posicao
+            });
+            
+            this.saveJogadores();
+            this.novoJogador.nome = '';
+            this.showToast('Jogador adicionado!');
+        },
+
+        removerJogador(index) {
+            this.jogadores.splice(index, 1);
+            this.saveJogadores();
+        },
+
+        saveJogadores() {
+            localStorage.setItem('sorteioJogadores', JSON.stringify({
+                jogadores: this.jogadores,
+                usarPosicoes: this.usarPosicoes
+            }));
+        },
+
+        ordenarPorPosicao(time) {
+            const ordem = { 'GOL': 1, 'ZAG': 2, 'MEI': 3, 'ATA': 4, 'LIB': 5 };
+            return [...time].sort((a, b) => ordem[a.posicao] - ordem[b.posicao]);
+        },
+
+        sugerirFormacao(time) {
+            const zag = this.contarPosicaoNoTime(time, 'ZAG');
+            const mei = this.contarPosicaoNoTime(time, 'MEI');
+            const ata = this.contarPosicaoNoTime(time, 'ATA');
+            const gol = this.contarPosicaoNoTime(time, 'GOL');
+            const lib = this.contarPosicaoNoTime(time, 'LIB');
+            
+            if (gol === 0) return 'Sem goleiro definido';
+            
+            // Calcular defensores e meias considerando liberado
+            const defensores = zag + Math.floor(lib / 2);
+            const meias = mei + Math.ceil(lib / 3);
+            const atacantes = ata + Math.ceil(lib / 3);
+            
+            return `${gol}-${zag + Math.floor(lib * 0.4)}-${mei + Math.ceil(lib * 0.3)}-${ata + Math.ceil(lib * 0.3)}`;
+        },
+
+        sortearTimes() {
+            if (this.jogadores.length < this.numeroTimes * 2) {
+                this.showToast('Adicione mais jogadores!');
+                return;
+            }
+
+            let jogadoresEmbaralhados = [...this.jogadores];
+            
+            // Separar goleiros primeiro
+            const goleiros = jogadoresEmbaralhados.filter(j => j.posicao === 'GOL');
+            const outros = jogadoresEmbaralhados.filter(j => j.posicao !== 'GOL');
+            
+            // Embaralhar arrays
+            goleiros.sort(() => Math.random() - 0.5);
+            outros.sort(() => Math.random() - 0.5);
+
+            // Ordenar outros por nível se equilibrado
+            if (this.metodoSorteio === 'equilibrado') {
+                outros.sort((a, b) => b.nivel - a.nivel);
+            } else if (this.metodoSorteio === 'posicao') {
+                // Agrupar por posição
+                const porPosicao = {};
+                ['ZAG', 'MEI', 'ATA', 'LIB'].forEach(pos => {
+                    porPosicao[pos] = outros.filter(j => j.posicao === pos);
+                });
+                // Reconstruir lista alternando posições
+                const maxLen = Math.max(...Object.values(porPosicao).map(arr => arr.length));
+                const intercalado = [];
+                for (let i = 0; i < maxLen; i++) {
+                    ['ZAG', 'MEI', 'ATA', 'LIB'].forEach(pos => {
+                        if (porPosicao[pos][i]) intercalado.push(porPosicao[pos][i]);
+                    });
+                }
+                outros.length = 0;
+                outros.push(...intercalado);
+            }
+
+            // Inicializar times vazios
+            this.times = Array.from({ length: this.numeroTimes }, () => []);
+
+            // Distribuir goleiros primeiro (1 por time se possível)
+            goleiros.forEach((goleiro, index) => {
+                const timeIndex = index % this.numeroTimes;
+                this.times[timeIndex].push(goleiro);
+            });
+
+            // Distribuir os demais jogadores
+            if (this.metodoSorteio === 'equilibrado' || this.metodoSorteio === 'posicao') {
+                // Encontrar time com menor soma de níveis e distribuir considerando posições
+                outros.forEach(jogador => {
+                    const pontuacaoTimes = this.times.map((time, i) => ({
+                        index: i,
+                        somaNivel: time.reduce((acc, j) => acc + j.nivel, 0),
+                        countPos: time.filter(j => j.posicao === jogador.posicao).length,
+                        countZAG: time.filter(j => j.posicao === 'ZAG').length,
+                        countMEI: time.filter(j => j.posicao === 'MEI').length,
+                        countATA: time.filter(j => j.posicao === 'ATA').length,
+                    }));
+                    
+                    // Priorizar equilíbrio de nível e depois de posição
+                    const timeIndex = pontuacaoTimes.sort((a, b) => {
+                        // Prioridade para quem tem menos dessa posição
+                        const posDiff = a.countPos - b.countPos;
+                        if (posDiff !== 0 && this.usarPosicoes) return posDiff;
+                        // Depois equilibrar nível
+                        return a.somaNivel - b.somaNivel;
+                    })[0].index;
+                    
+                    this.times[timeIndex].push(jogador);
+                });
+            } else {
+                // Distribuição circular aleatória
+                outros.forEach((jogador, index) => {
+                    this.times[index % this.numeroTimes].push(jogador);
+                });
+            }
+
+            this.etapa = 'resultado';
+            this.saveJogadores();
+            
+            setTimeout(() => {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444']
+                });
+            }, 300);
+        },
+
+        calcularMedia(time) {
+            if (time.length === 0) return 0;
+            const soma = time.reduce((acc, j) => acc + j.nivel, 0);
+            return Math.round(soma / time.length);
+        },
+
+        copiarTimes() {
+            let texto = '🏆 SORTEIO DE TIMES ⚽\n';
+            if (this.usarPosicoes) texto += '📍 Com posições\n';
+            texto += '\n';
+            
+            this.times.forEach((time, index) => {
+                const corEmoji = ['🔴', '🔵', '🟢', '🟡', '🟣', '⚪', '🟠', '⚫'][index];
+                texto += `${corEmoji} *Time ${index + 1}*\n`;
+                
+                // Ordenar por posição
+                const ordenado = this.ordenarPorPosicao(time);
+                
+                ordenado.forEach((jogador, i) => {
+                    const estrelas = '⭐'.repeat(jogador.nivel);
+                    const posEmoji = this.posicoes[jogador.posicao]?.emoji || '';
+                    texto += `${i + 1}. ${posEmoji} ${jogador.nome} ${estrelas}\n`;
+                });
+                
+                texto += `📊 Formação: ${this.sugerirFormacao(time)}\n\n`;
+            });
+            
+            navigator.clipboard.writeText(texto).then(() => {
+                this.showToast('Times copiados!');
+            });
+        },
+
+        showToast(message) {
+            this.toast.message = message;
+            this.toast.show = true;
+            setTimeout(() => this.toast.show = false, 2000);
+        },
+
+        get jogadoresPorTime() {
+            if (this.jogadores.length === 0) return 0;
+            return Math.floor(this.jogadores.length / this.numeroTimes);
+        }
+    }
+}
+</script>
+
+</body>
+</html>
